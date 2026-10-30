@@ -1,3 +1,6 @@
+> **flippy7's fork:** [Download the latest custom build](https://github.com/flippy7/SkyHanni/releases/latest).
+> Includes secondary Garden keybinds and daily upstream sync. See [FORK.md](FORK.md) for details.
+
 <h1 align="center">
   SkyHanni: Mod for Hypixel SkyBlock
 </h1>

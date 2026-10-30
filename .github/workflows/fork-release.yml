@@ -1,0 +1,59 @@
+name: Publish fork release
+
+on:
+    workflow_run:
+        workflows: [Build]
+        branches: [beta]
+        types: [completed]
+
+permissions:
+    actions: read
+    contents: write
+
+concurrency:
+    group: fork-release
+    cancel-in-progress: false
+
+jobs:
+    release:
+        if: >-
+            github.repository == 'flippy7/SkyHanni' &&
+            github.event.workflow_run.conclusion == 'success' &&
+            github.event.workflow_run.head_repository.full_name == github.repository &&
+            (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check that the build is still the current beta commit
+              id: current
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+              run: |
+                  current="$(gh api "repos/$GITHUB_REPOSITORY/commits/beta" --jq .sha)"
+                  if [[ "$current" == "$BUILD_SHA" ]]; then
+                      echo 'publish=true' >> "$GITHUB_OUTPUT"
+                  else
+                      echo 'Skipped an older build: beta already has newer commits.' >> "$GITHUB_STEP_SUMMARY"
+                  fi
+            - uses: actions/checkout@v6
+              if: steps.current.outputs.publish == 'true'
+              with:
+                  ref: ${{ github.event.workflow_run.head_sha }}
+                  persist-credentials: false
+            - name: Download the JARs from the successful build
+              if: steps.current.outputs.publish == 'true'
+              uses: actions/download-artifact@v8
+              with:
+                  github-token: ${{ github.token }}
+                  run-id: ${{ github.event.workflow_run.id }}
+                  pattern: SkyHanni-*-mc*.jar
+                  merge-multiple: true
+                  path: artifacts
+            - name: Publish the tested fork builds
+              if: steps.current.outputs.publish == 'true'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+                  BUILD_NUMBER: ${{ github.event.workflow_run.run_number }}
+                  BUILD_URL: ${{ github.event.workflow_run.html_url }}
+              run: bash .github/scripts/publish-fork-release.sh

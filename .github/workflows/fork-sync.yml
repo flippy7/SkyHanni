@@ -1,0 +1,45 @@
+name: Sync SkyHanni
+
+on:
+    schedule:
+        - cron: "23 5 * * *"
+    workflow_dispatch: { }
+
+permissions:
+    contents: write
+    actions: write
+
+concurrency:
+    group: fork-sync
+    cancel-in-progress: false
+
+jobs:
+    sync:
+        if: github.repository == 'flippy7/SkyHanni'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  ref: beta
+                  fetch-depth: 0
+                  token: ${{ secrets.FORK_SYNC_TOKEN || github.token }}
+            - name: Merge upstream without replacing fork changes
+              run: |
+                  git config user.name 'github-actions[bot]'
+                  git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+                  bash .github/scripts/sync-fork.sh
+            # Pushes made with GITHUB_TOKEN do not trigger the normal push workflow.
+            - name: Start a build if this commit has none running or successful
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  head="$(git rev-parse HEAD)"
+                  count="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build.yml \
+                      --branch beta --commit "$head" --limit 20 --json status,conclusion \
+                      --jq '[.[] | select(.status != "completed" or .conclusion == "success")] | length')"
+                  if [[ "$count" == "0" ]]; then
+                      gh workflow run build.yml --repo "$GITHUB_REPOSITORY" --ref beta
+                      echo 'Build requested. A release will be published after it passes.' >> "$GITHUB_STEP_SUMMARY"
+                  else
+                      echo 'This commit already has a build running or completed successfully.' >> "$GITHUB_STEP_SUMMARY"
+                  fi
