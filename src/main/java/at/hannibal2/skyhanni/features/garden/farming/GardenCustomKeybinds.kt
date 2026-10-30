@@ -27,8 +27,8 @@ object GardenCustomKeybinds {
     private val config get() = GardenApi.config.keyBind
     private val mcSettings get() = Minecraft.getInstance().options
 
-    private var map: Map<KeyMapping, Int> = emptyMap()
-    private val pressedToggleKeys = mutableMapOf<KeyMapping, Int>()
+    private var map: Map<KeyMapping, List<Int>> = emptyMap()
+    private val pressedToggleKeys = mutableMapOf<KeyMapping, Set<Int>>()
     private var lastWindowOpenTime = SimpleTimeMark.farPast()
     private var wasActive = false
 
@@ -36,16 +36,15 @@ object GardenCustomKeybinds {
     fun isKeyDown(keyBinding: KeyMapping, isDown: Boolean, cir: CallbackInfoReturnable<Boolean>) {
         if (!updateActiveState()) return
         val override = map[keyBinding] ?: run {
-            if (map.containsValue(keyBinding.key.value)) {
+            if (map.values.any { keyBinding.key.value in it }) {
                 cir.returnValue = false
             }
             return
         }
 
         cir.returnValue = when {
-            !keyBinding.isToggle() -> override.isKeyHeld()
-            keyBinding.isRemappedFrom(override) -> keyBinding.updateToggleState(override, isDown)
-            else -> isDown
+            keyBinding.isToggle() -> keyBinding.updateToggleState(override, isDown)
+            else -> override.any { it.isKeyHeld() }
         }
     }
 
@@ -53,15 +52,16 @@ object GardenCustomKeybinds {
     fun isKeyPressed(keyBinding: KeyMapping, cir: CallbackInfoReturnable<Boolean>) {
         if (!updateActiveState()) return
         val override = map[keyBinding] ?: run {
-            if (map.containsValue(keyBinding.key.value)) {
+            if (map.values.any { keyBinding.key.value in it }) {
                 cir.returnValue = false
             }
             return
         }
-        cir.returnValue = if (keyBinding.isToggle() && keyBinding.isRemappedFrom(override)) {
+        cir.returnValue = if (keyBinding.isToggle()) {
             keyBinding.consumeToggleClick(override)
         } else {
-            override.isKeyClicked()
+            // Poll both keys even after a click, so released keys are unlocked.
+            override.count { it.isKeyClicked() } > 0
         }
     }
 
@@ -76,7 +76,16 @@ object GardenCustomKeybinds {
     @HandleEvent
     fun onConfigLoad() {
         with(config) {
-            ConditionalUtils.onToggle(attack, useItem, left, right, forward, back, jump, sneak) {
+            ConditionalUtils.onToggle(
+                attack, attackSecondary,
+                useItem, useItemSecondary,
+                left, leftSecondary,
+                right, rightSecondary,
+                forward, forwardSecondary,
+                back, backSecondary,
+                jump, jumpSecondary,
+                sneak, sneakSecondary,
+            ) {
                 update()
             }
             update()
@@ -89,17 +98,18 @@ object GardenCustomKeybinds {
         with(config) {
             with(mcSettings) {
                 map = buildMap {
-                    fun add(keyBinding: KeyMapping, property: Property<Int>) {
-                        put(keyBinding, property.get())
+                    fun add(keyBinding: KeyMapping, primary: Property<Int>, secondary: Property<Int>) {
+                        val keys = listOf(primary.get(), secondary.get()).filter { it != GLFW.GLFW_KEY_UNKNOWN }.distinct()
+                        put(keyBinding, keys)
                     }
-                    add(keyAttack, attack)
-                    add(keyUse, useItem)
-                    add(keyLeft, left)
-                    add(keyRight, right)
-                    add(keyUp, forward)
-                    add(keyDown, back)
-                    add(keyJump, jump)
-                    add(keyShift, sneak)
+                    add(keyAttack, attack, attackSecondary)
+                    add(keyUse, useItem, useItemSecondary)
+                    add(keyLeft, left, leftSecondary)
+                    add(keyRight, right, rightSecondary)
+                    add(keyUp, forward, forwardSecondary)
+                    add(keyDown, back, backSecondary)
+                    add(keyJump, jump, jumpSecondary)
+                    add(keyShift, sneak, sneakSecondary)
                 }
             }
         }
@@ -118,8 +128,8 @@ object GardenCustomKeybinds {
 
     private fun primePressedToggleKeys() {
         for ((keyBinding, override) in map) {
-            if (keyBinding.isToggle() && keyBinding.isRemappedFrom(override) && override.isKeyHeld()) {
-                pressedToggleKeys[keyBinding] = override
+            if (keyBinding.isToggle()) {
+                pressedToggleKeys[keyBinding] = override.filter { it != keyBinding.key.value && it.isKeyHeld() }.toSet()
             }
         }
     }
@@ -127,31 +137,25 @@ object GardenCustomKeybinds {
     private fun KeyMapping.isToggle(): Boolean =
         this is ToggleKeyMapping && needsToggle.asBoolean
 
-    private fun KeyMapping.isRemappedFrom(override: Int): Boolean =
-        key.value != override
+    private fun KeyMapping.consumeRemappedTogglePress(override: List<Int>): Boolean {
+        // Minecraft already toggles the original key; handle only the alternative keys here.
+        val held = override.filter { it != key.value && it.isKeyHeld() }.toSet()
+        val previous = pressedToggleKeys.put(this, held).orEmpty()
+        return held.any { it !in previous }
+    }
 
-    private fun KeyMapping.updateToggleState(override: Int, isDown: Boolean): Boolean {
-        if (!override.isKeyHeld()) {
-            pressedToggleKeys.remove(this, override)
-            return isDown
-        }
-        if (pressedToggleKeys[this] == override) return isDown
-
-        pressedToggleKeys[this] = override
+    private fun KeyMapping.updateToggleState(override: List<Int>, isDown: Boolean): Boolean {
+        if (!consumeRemappedTogglePress(override)) return isDown
         setDown(true)
         return !isDown
     }
 
-    private fun KeyMapping.consumeToggleClick(override: Int): Boolean {
-        if (!override.isKeyHeld()) {
-            pressedToggleKeys.remove(this, override)
-            return false
+    private fun KeyMapping.consumeToggleClick(override: List<Int>): Boolean {
+        if (consumeRemappedTogglePress(override)) {
+            isDown = true
+            return true
         }
-        if (pressedToggleKeys[this] == override) return false
-
-        pressedToggleKeys[this] = override
-        isDown = true
-        return true
+        return key.value in override && key.value.isKeyClicked()
     }
 
     private fun isEnabled(): Boolean =
@@ -185,6 +189,7 @@ object GardenCustomKeybinds {
             back.set(GLFW.GLFW_KEY_UNKNOWN)
             jump.set(GLFW.GLFW_KEY_UNKNOWN)
             sneak.set(GLFW.GLFW_KEY_UNKNOWN)
+            clearSecondaryKeys()
         }
     }
 
@@ -199,6 +204,20 @@ object GardenCustomKeybinds {
             back.set(GLFW.GLFW_KEY_S)
             jump.set(GLFW.GLFW_KEY_SPACE)
             sneak.set(GLFW.GLFW_KEY_LEFT_SHIFT)
+            clearSecondaryKeys()
+        }
+    }
+
+    private fun clearSecondaryKeys() {
+        with(config) {
+            attackSecondary.set(GLFW.GLFW_KEY_UNKNOWN)
+            useItemSecondary.set(GLFW.GLFW_KEY_UNKNOWN)
+            leftSecondary.set(GLFW.GLFW_KEY_UNKNOWN)
+            rightSecondary.set(GLFW.GLFW_KEY_UNKNOWN)
+            forwardSecondary.set(GLFW.GLFW_KEY_UNKNOWN)
+            backSecondary.set(GLFW.GLFW_KEY_UNKNOWN)
+            jumpSecondary.set(GLFW.GLFW_KEY_UNKNOWN)
+            sneakSecondary.set(GLFW.GLFW_KEY_UNKNOWN)
         }
     }
 

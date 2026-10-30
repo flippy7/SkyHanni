@@ -74,9 +74,19 @@ class KeyBindConfig {
     val attack: Property<Int> = Property.of(KeyboardManager.LEFT_MOUSE)
 
     @Expose
+    @ConfigOption(name = "Attack (Second Key)", desc = "An alternative key for Attack. Either key works independently.")
+    @ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    val attackSecondary: Property<Int> = Property.of(GLFW.GLFW_KEY_UNKNOWN)
+
+    @Expose
     @ConfigOption(name = "Use Item", desc = "")
     @ConfigEditorKeybind(defaultKey = KeyboardManager.RIGHT_MOUSE)
     val useItem: Property<Int> = Property.of(KeyboardManager.RIGHT_MOUSE)
+
+    @Expose
+    @ConfigOption(name = "Use Item (Second Key)", desc = "An alternative key for Use Item. Either key works independently.")
+    @ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    val useItemSecondary: Property<Int> = Property.of(GLFW.GLFW_KEY_UNKNOWN)
 
     @Expose
     @ConfigOption(name = "Move Left", desc = "")
@@ -84,9 +94,19 @@ class KeyBindConfig {
     val left: Property<Int> = Property.of(GLFW.GLFW_KEY_A)
 
     @Expose
+    @ConfigOption(name = "Move Left (Second Key)", desc = "An alternative key for Move Left. Either key works independently.")
+    @ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    val leftSecondary: Property<Int> = Property.of(GLFW.GLFW_KEY_UNKNOWN)
+
+    @Expose
     @ConfigOption(name = "Move Right", desc = "")
     @ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_D)
     val right: Property<Int> = Property.of(GLFW.GLFW_KEY_D)
+
+    @Expose
+    @ConfigOption(name = "Move Right (Second Key)", desc = "An alternative key for Move Right. Either key works independently.")
+    @ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    val rightSecondary: Property<Int> = Property.of(GLFW.GLFW_KEY_UNKNOWN)
 
     @Expose
     @ConfigOption(name = "Move Forward", desc = "")
@@ -94,9 +114,19 @@ class KeyBindConfig {
     val forward: Property<Int> = Property.of(GLFW.GLFW_KEY_W)
 
     @Expose
+    @ConfigOption(name = "Move Forward (Second Key)", desc = "An alternative key for Move Forward. Either key works independently.")
+    @ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    val forwardSecondary: Property<Int> = Property.of(GLFW.GLFW_KEY_UNKNOWN)
+
+    @Expose
     @ConfigOption(name = "Move Back", desc = "")
     @ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_S)
     val back: Property<Int> = Property.of(GLFW.GLFW_KEY_S)
+
+    @Expose
+    @ConfigOption(name = "Move Back (Second Key)", desc = "An alternative key for Move Back. Either key works independently.")
+    @ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    val backSecondary: Property<Int> = Property.of(GLFW.GLFW_KEY_UNKNOWN)
 
     @Expose
     @ConfigOption(name = "Jump", desc = "")
@@ -104,7 +134,17 @@ class KeyBindConfig {
     val jump: Property<Int> = Property.of(GLFW.GLFW_KEY_SPACE)
 
     @Expose
+    @ConfigOption(name = "Jump (Second Key)", desc = "An alternative key for Jump. Either key works independently.")
+    @ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    val jumpSecondary: Property<Int> = Property.of(GLFW.GLFW_KEY_UNKNOWN)
+
+    @Expose
     @ConfigOption(name = "Sneak", desc = "")
     @ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_LEFT_SHIFT)
     val sneak: Property<Int> = Property.of(GLFW.GLFW_KEY_LEFT_SHIFT)
+
+    @Expose
+    @ConfigOption(name = "Sneak (Second Key)", desc = "An alternative key for Sneak. Either key works independently.")
+    @ConfigEditorKeybind(defaultKey = GLFW.GLFW_KEY_UNKNOWN)
+    val sneakSecondary: Property<Int> = Property.of(GLFW.GLFW_KEY_UNKNOWN)
 }
